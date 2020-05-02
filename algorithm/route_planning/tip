@@ -1,0 +1,144 @@
+# 这一段代码片段是用于插入单个订单的规划方法，使用An Efﬁcient Insertion Operator in Dynamic Ridesharing Services (ICDE2019) 里面的方法
+# @staticmethod
+# def _generate_feasible_insert_pair(vehicle_type: VehicleType, route: List[OrderLocation], order: Order, current_time: int, network: Network):
+#
+#     def _dis(l1: GeoLocation, l2: GeoLocation) -> float:
+#         return network.get_shortest_distance(l1, l2)
+#
+#     def _generate_pck_list() -> List[int]:
+#         """
+#         这个函数将返回一个向量，这个向量表示按照行驶路线，行驶到第i个位置的时候，车还剩多少座位
+#         我们规定0位置是车辆位置， 从1 到 n 位置表示行驶路线上的坐标，我们返回一个（n+1）长度的向量
+#         详细的定义请看 An Efﬁcient Insertion Operator in Dynamic Ridesharing Services (ICDE2019) 里面的解释，我们这里做了一定修改，这里面是剩余座位
+#         :return:
+#         """
+#         _pck_list = [vehicle_type.available_seats] * (n + 1)
+#         for k in range(n):
+#             if isinstance(route[k], PickLocation):
+#                 _pck_list[k + 1] = _pck_list[k] - route[k].belong_order.n_riders
+#             else:
+#                 _pck_list[k + 1] = _pck_list[k] + route[k].belong_order.n_riders
+#         return _pck_list
+#
+#     def _generate_arr_list() -> List[float]:
+#         """
+#         这个函数将返回一个向量，这个向量表示按照行驶路线，行驶到第i个位置的时候，车已经行驶的距离
+#         我们规定0位置是车辆位置， 从1 到 n 位置表示行驶路线上的坐标，我们返回一个（n+1）长度的向量
+#         详细的定义请看 An Efﬁcient Insertion Operator in Dynamic Ridesharing Services (ICDE2019) 里面的解释
+#         :return:
+#         """
+#         _arr_list = [vehicle_type.service_driven_distance] * (n + 1)
+#         for k in range(n):
+#             if k == FIRST_INDEX:
+#                 _arr_list[k + 1] = _arr_list[k] + network.get_shortest_distance(vehicle_type.location, route[k])
+#             else:
+#                 _arr_list[k + 1] = _arr_list[k] + network.get_shortest_distance(route[k - 1], route[k])
+#         return _arr_list
+#
+#     def _generate_slk_list() -> List[float]:
+#         _slk_list = [POS_INF] * (n + 1)
+#         for k in range(n):
+#             belong_order: Order = route[k].belong_order
+#             if isinstance(route[k], PickLocation):
+#                 pick_location_arr_dict[belong_order] = arr_list[k + 1]
+#                 pick_location_dll_dict[belong_order] = vehicle_type.service_driven_distance + (belong_order.wait_time + belong_order.request_time - current_time) * vehicle_type.vehicle_speed
+#             else:
+#                 drop_location_ser_dict[belong_order] = belong_order.detour_distance + belong_order.order_distance
+#
+#         for k in range(n):
+#             belong_order: Order = route[k].belong_order
+#
+#             if belong_order in pick_location_arr_dict:
+#                 temp_dist = pick_location_arr_dict[belong_order]
+#             else:
+#                 temp_dist = belong_order.pick_up_distance
+#                 pick_location_arr_dict[belong_order] = temp_dist
+#
+#             if isinstance(route[k], PickLocation):
+#                 _slk_list[k] = pick_location_dll_dict[belong_order] - temp_dist
+#             else:
+#                 _slk_list[k] = drop_location_ser_dict[belong_order] - (arr_list[k + 1] - temp_dist)
+#
+#         return _slk_list
+#
+#     def _process_equal_insert():
+#         for i in range(n + 1):
+#             if pck_list[i] < order.n_riders:  # 订单在这之后无法上车
+#                 continue
+#
+#             if i == n:
+#                 now_pick_distance = _dis(route[i - 1], order.pick_location)
+#                 delta_i_j = now_pick_distance + order.order_distance
+#             else:
+#                 if i == FIRST_INDEX:
+#                     pre_pick_distance = _dis(vehicle_type.location, route[i])
+#                     now_pick_distance = _dis(vehicle_type.location, order.pick_location)
+#                 else:
+#                     pre_pick_distance = _dis(route[i - 1], route[i])
+#                     now_pick_distance = _dis(route[i - 1], order.pick_location)
+#                 delta_i_j = now_pick_distance + order.order_distance + _dis(order.drop_location, route[i]) - pre_pick_distance
+#
+#             if delta_i_j == POS_INF:
+#                 continue
+#             if network.is_smaller_bound_distance(arr_list[i] + now_pick_distance, order_arr_dead_line) and network.is_smaller_bound_distance(delta_i_j, slk_list[i]):
+#                 yield i, i
+#
+#     def _process_unequal_insert():
+#         for i in range(n):
+#             if pck_list[i] < order.n_riders:
+#                 continue
+#             if i == FIRST_INDEX:
+#                 pre_pick_distance = _dis(vehicle_type.location, route[i])
+#                 now_pick_distance = _dis(vehicle_type.location, order.pick_location)
+#             else:
+#                 pre_pick_distance = _dis(route[i - 1], route[i])
+#                 now_pick_distance = _dis(route[i - 1], order.pick_location)
+#             if not network.is_smaller_bound_distance(arr_list[i] + now_pick_distance, order_arr_dead_line):
+#                 continue
+#             delta_i = now_pick_distance + _dis(order.pick_location, route[i]) - pre_pick_distance
+#             if delta_i == POS_INF or not network.is_smaller_bound_distance(delta_i, slk_list[i]):
+#                 continue
+#             for j in range(i + 1, n + 1):
+#                 if pck_list[j] < order.n_riders:  # 送到目的地的时间太靠后了，导致无法消除之前插入带来的影响
+#                     break
+#                 if not network.is_smaller_bound_distance(_dis(order.pick_location, route[i]) + (arr_list[j] - arr_list[i + 1]) + _dis(route[j - 1], order.drop_location), order_ser_dead_line):
+#                     continue
+#                 delta_j = _dis(route[j - 1], order.drop_location) if j == n else _dis(route[j - 1], order.drop_location) + _dis(order.drop_location, route[j]) - _dis(route[j - 1], route[j])
+#
+#                 if delta_j == POS_INF:
+#                     continue
+#
+#                 if j == n:
+#                     yield i, j
+#                 elif isinstance(route[j], PickLocation) and network.is_smaller_bound_distance(delta_i + delta_j, slk_list[j]):
+#                     yield i, j
+#                 else:
+#                     if pick_location_arr_dict[route[j].belong_order] < arr_list[i + 1]:
+#                         if network.is_smaller_bound_distance(delta_i + delta_j, slk_list[j]):
+#                             yield i, j
+#                     else:
+#                         if network.is_smaller_bound_distance(delta_j, slk_list[j]):
+#                             yield i, j
+#
+#     n = len(route)
+#     if n == 0:
+#         yield 0, 0
+#     else:
+#         pick_location_arr_dict = dict()  # 接送距離
+#         pick_location_dll_dict = dict()  # 接送距离极限
+#         drop_location_ser_dict = dict()  # 服务距离极限
+#         pck_list: List[int] = _generate_pck_list()
+#         arr_list: List[float] = _generate_arr_list()
+#         slk_list: List[float] = _generate_slk_list()
+#         order_arr_dead_line = vehicle_type.service_driven_distance + (order.request_time + order.wait_time - current_time) * vehicle_type.vehicle_speed
+#         order_ser_dead_line = order.detour_distance + order.order_distance
+#         # 单独考虑 i == j
+#         yield from _process_equal_insert()
+#         # 考虑 i < j
+#         yield from _process_unequal_insert()
+#
+# def planning2(self, vehicle_type: VehicleType, old_route: List[OrderLocation], order: Order, current_time: int, network: Network):
+#     for i, j in self._generate_feasible_insert_pair(vehicle_type, old_route, order, current_time, network):
+#         new_route = generate_route_by_insert_pick_drop_location(old_route, order, i, j)
+#         new_route_info = get_route_info(vehicle_type, new_route, current_time, network)
+#         self._optimizer.optimize(new_route, new_route_info, vehicle_type.unit_cost)
